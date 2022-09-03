@@ -32,6 +32,7 @@ module Solargraph
 
       def initialize
         @schema_present = File.exist?('db/schema.rb')
+        @namespace_prefixes = {}
       end
 
       def process(source_map, ns)
@@ -76,6 +77,9 @@ module Solargraph
         walker.on :send, [:self, :table_name=, :str] do |ast|
           table_name = ast.children.last.children.first
         end
+        walker.on :send, [:self, :table_name_prefix=, :str] do |ast|
+          table_name_prefixes[ns.path] = ast.children.last.children.first
+        end
         walker.walk
 
         # always use explicit table name if present
@@ -86,7 +90,9 @@ module Solargraph
 
       def infer_table_names(ns)
         table_name = ns.name.tableize
-        if ns.namespace.present?
+        if table_name_prefixes[ns.namespace]
+          [table_name_prefixes[ns.namespace] + table_name]
+        elsif ns.namespace.present?
           [ns.path.tableize.tr('/', '_'), table_name]
         else
           [table_name]
@@ -113,6 +119,10 @@ module Solargraph
 
         walker.walk
         schema
+      end
+
+      def table_name_prefixes
+        @table_name_prefixes ||= {}
       end
     end
   end

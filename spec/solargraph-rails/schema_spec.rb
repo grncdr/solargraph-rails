@@ -128,5 +128,32 @@ RSpec.describe Solargraph::Rails::Schema do
 
     assert_public_instance_method(map, 'Invoice#amount', ['BigDecimal'])
   end
+
+  it 'uses table_name_prefix if defined on containing module', \
+    skip: 'requires correct ordering of file loading' do
+    map = use_workspace "./spec/rails5" do |root|
+      root.write_file 'db/schema.rb', <<-RUBY
+        ActiveRecord::Schema.define(version: 2021_10_20_084658) do
+          create_table "a_invoices", force: :cascade do |t|
+            t.decimal "amount"
+          end
+        end
+      RUBY
+
+      root.write_file 'app/models/accounting.rb', <<-RUBY
+        module Accounting
+          self.table_name_prefix = "a_"
+        end
+      RUBY
+
+      root.write_file 'app/models/accounting/invoice.rb', <<-RUBY
+        class Accounting::Invoice < ActiveRecord::Base
+        end
+      RUBY
+    end
+
+    assert_public_instance_method(map, "Accounting::Invoice#due_at", ["Date"])
+  end
+
 end
 
